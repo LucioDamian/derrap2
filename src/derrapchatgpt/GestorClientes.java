@@ -25,7 +25,9 @@ public class GestorClientes extends JPanel {
         modelo.addColumn("ID Cliente");
         modelo.addColumn("DNI");
         modelo.addColumn("Nombre");
+        modelo.addColumn("Apellido");
         modelo.addColumn("Teléfono");
+        modelo.addColumn("Email");
         tablaClientes = new JTable(modelo);
         JScrollPane scrollPane = new JScrollPane(tablaClientes);
         add(scrollPane, BorderLayout.CENTER);
@@ -46,7 +48,7 @@ public class GestorClientes extends JPanel {
         add(panelBotones, BorderLayout.SOUTH);
 
         // Eventos de botones
-        btnAgregar.addActionListener(e -> agregarCliente());
+        btnAgregar.addActionListener(e -> new FormularioCliente(this, false, 0, "", "", "", "", ""));
         btnModificar.addActionListener(e -> modificarCliente());
         btnEliminar.addActionListener(e -> eliminarCliente());
         btnActualizar.addActionListener(e -> cargarClientes());
@@ -56,9 +58,9 @@ public class GestorClientes extends JPanel {
         cargarClientes();
     }
 
-    private void cargarClientes() {
+    public void cargarClientes() {
         modelo.setRowCount(0);
-        String sql = "SELECT idcliente, dni, nombre, telefono FROM clientes";
+        String sql = "SELECT idcliente, dni, nombre, apellido, telefono, email FROM clientes";
 
         try (Connection conexion = conector.getConexion();
              PreparedStatement ps = conexion.prepareStatement(sql);
@@ -68,7 +70,9 @@ public class GestorClientes extends JPanel {
                         rs.getInt("idcliente"),
                         rs.getString("dni"),
                         rs.getString("nombre"),
-                        rs.getString("telefono")
+                        rs.getString("apellido"),
+                        rs.getString("telefono"),
+                        rs.getString("email")
                 });
             }
         } catch (SQLException e) {
@@ -110,29 +114,16 @@ public class GestorClientes extends JPanel {
         }
 
         int idCliente = (int) modelo.getValueAt(filaSeleccionada, 0);
-        String nuevoNombre = JOptionPane.showInputDialog("Nuevo nombre del cliente:");
-        String nuevoTelefono = JOptionPane.showInputDialog("Nuevo teléfono del cliente:");
+        String dni = (String) modelo.getValueAt(filaSeleccionada, 1);
+        String nombre = (String) modelo.getValueAt(filaSeleccionada, 2);
+        String apellido = (String) modelo.getValueAt(filaSeleccionada, 3);
+        String telefono = (String) modelo.getValueAt(filaSeleccionada, 4);
+        String email = (String) modelo.getValueAt(filaSeleccionada, 5);
 
-        if (nuevoNombre == null || nuevoTelefono == null || nuevoNombre.isEmpty() || nuevoTelefono.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar los nuevos valores.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        String sql = "UPDATE clientes SET nombre = ?, telefono = ? WHERE idcliente = ?";
-        try (Connection conexion = conector.getConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, nuevoNombre);
-            ps.setString(2, nuevoTelefono);
-            ps.setInt(3, idCliente);
-            int filasAfectadas = ps.executeUpdate();
-            if (filasAfectadas > 0) {
-                JOptionPane.showMessageDialog(this, "Cliente modificado correctamente.");
-                cargarClientes();
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        new FormularioCliente(this, true, idCliente, dni, nombre, apellido, telefono, email);
     }
+
+
 
     private void eliminarCliente() {
         int filaSeleccionada = tablaClientes.getSelectedRow();

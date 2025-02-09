@@ -6,44 +6,43 @@ import java.awt.event.ActionEvent;
 import java.sql.*;
 
 public class GestorVehiculos extends JPanel {
-    private JTable tablaVehiculos;
+    private JTable tabla;
     private DefaultTableModel modelo;
     private Conector conector;
 
     public GestorVehiculos() {
-        setLayout(new BorderLayout());
         conector = new Conector();
+        setLayout(new BorderLayout());
 
-        // Panel superior con título
-        JPanel panelSuperior = new JPanel();
-        panelSuperior.add(new JLabel("Gestión de Vehículos"));
-        add(panelSuperior, BorderLayout.NORTH);
-
-        // Tabla de vehículos
         modelo = new DefaultTableModel();
         modelo.addColumn("Matrícula");
         modelo.addColumn("Marca");
         modelo.addColumn("Modelo");
         modelo.addColumn("Año");
         modelo.addColumn("Cliente ID");
-        tablaVehiculos = new JTable(modelo);
-        JScrollPane scrollPane = new JScrollPane(tablaVehiculos);
-        add(scrollPane, BorderLayout.CENTER);
 
-        // Panel de botones
+        tabla = new JTable(modelo);
+        add(new JScrollPane(tabla), BorderLayout.CENTER);
+
         JPanel panelBotones = new JPanel();
-        JButton btnActualizar = new JButton("Actualizar Lista");
-        panelBotones.add(btnActualizar);
+        JButton btnAgregar = new JButton("Agregar Vehículo");
+        JButton btnModificar = new JButton("Modificar Vehículo");
+        JButton btnEliminar = new JButton("Eliminar Vehículo");
+
+        panelBotones.add(btnAgregar);
+        panelBotones.add(btnModificar);
+        panelBotones.add(btnEliminar);
         add(panelBotones, BorderLayout.SOUTH);
 
-        // Eventos de botones
-        btnActualizar.addActionListener(e -> cargarVehiculos());
+        btnAgregar.addActionListener(e -> new FormularioVehiculo(this, null));
+        btnModificar.addActionListener(e -> modificarVehiculo());
+        btnEliminar.addActionListener(e -> eliminarVehiculo());
 
-        // Cargar vehículos al abrir el panel
         cargarVehiculos();
     }
 
-    private void cargarVehiculos() {
+
+    void cargarVehiculos() {
         modelo.setRowCount(0);
         String sql = "SELECT matricula, marca, modelo, año, cliente_id FROM vehiculos";
 
@@ -55,13 +54,18 @@ public class GestorVehiculos extends JPanel {
                         rs.getString("matricula"),
                         rs.getString("marca"),
                         rs.getString("modelo"),
-                        rs.getInt("año"),
+                        rs.getInt("año"), // Se asegura que "año" se lea correctamente
                         rs.getInt("cliente_id")
                 });
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+
+    private void abrirFormularioVehiculo(String matricula) {
+        new FormularioVehiculo(this, matricula);
     }
 
     private void agregarVehiculo() {
@@ -102,50 +106,18 @@ public class GestorVehiculos extends JPanel {
     }
 
     private void modificarVehiculo() {
-        int filaSeleccionada = tablaVehiculos.getSelectedRow();
+        int filaSeleccionada = tabla.getSelectedRow();
         if (filaSeleccionada == -1) {
             JOptionPane.showMessageDialog(this, "Seleccione un vehículo para modificar.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         String matricula = (String) modelo.getValueAt(filaSeleccionada, 0);
-        String nuevaMarca = JOptionPane.showInputDialog("Nueva marca:");
-        String nuevoModelo = JOptionPane.showInputDialog("Nuevo modelo:");
-        String nuevoAnioStr = JOptionPane.showInputDialog("Nuevo año:");
-
-        if (nuevaMarca == null || nuevoModelo == null || nuevoAnioStr == null ||
-            nuevaMarca.isEmpty() || nuevoModelo.isEmpty() || nuevoAnioStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar los nuevos valores.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        int nuevoAnio;
-        try {
-            nuevoAnio = Integer.parseInt(nuevoAnioStr);
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Ingrese un año válido.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        String sql = "UPDATE vehiculos SET marca = ?, modelo = ?, anio = ? WHERE matricula = ?";
-        try (Connection conexion = conector.getConexion();
-             PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, nuevaMarca);
-            ps.setString(2, nuevoModelo);
-            ps.setInt(3, nuevoAnio);
-            ps.setString(4, matricula);
-            int filasAfectadas = ps.executeUpdate();
-            if (filasAfectadas > 0) {
-                JOptionPane.showMessageDialog(this, "Vehículo modificado correctamente.");
-                cargarVehiculos();
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        new FormularioVehiculo(this, matricula);
     }
 
     private void eliminarVehiculo() {
-        int filaSeleccionada = tablaVehiculos.getSelectedRow();
+        int filaSeleccionada = tabla.getSelectedRow();
         if (filaSeleccionada == -1) {
             JOptionPane.showMessageDialog(this, "Seleccione un vehículo para eliminar.", "Error", JOptionPane.ERROR_MESSAGE);
             return;

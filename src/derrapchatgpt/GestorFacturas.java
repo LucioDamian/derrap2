@@ -30,9 +30,26 @@ public class GestorFacturas extends JPanel {
         JScrollPane scrollPane = new JScrollPane(tablaFacturas);
         add(scrollPane, BorderLayout.CENTER);
 
+        // Panel de botones
+        JPanel panelBotones = new JPanel();
+        JButton btnAgregar = new JButton("Generar Factura");
+        JButton btnEliminar = new JButton("Eliminar Factura");
+        JButton btnActualizar = new JButton("Actualizar");
+
+        panelBotones.add(btnAgregar);
+        panelBotones.add(btnEliminar);
+        panelBotones.add(btnActualizar);
+        add(panelBotones, BorderLayout.SOUTH);
+
+        // Eventos de botones
+        btnAgregar.addActionListener(e -> generarFactura());
+        btnEliminar.addActionListener(e -> eliminarFactura());
+        btnActualizar.addActionListener(e -> cargarFacturas());
+
         // Cargar facturas al abrir el panel
         cargarFacturas();
     }
+
 
     private void cargarFacturas() {
         modelo.setRowCount(0);
@@ -51,6 +68,95 @@ public class GestorFacturas extends JPanel {
                         rs.getString("metodo_pago")
                 });
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private double calcularTotal(String descripcion) {
+        double total = 0;
+        String[] servicios = descripcion.split(", ");
+
+        for (String servicio : servicios) {
+            String sql = "SELECT precio FROM servicios WHERE nombre = ?";
+            try (Connection conexion = conector.getConexion();
+                 PreparedStatement ps = conexion.prepareStatement(sql)) {
+                ps.setString(1, servicio);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    total += rs.getDouble("precio");
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return total;
+    }
+    
+    private String obtenerServiciosCliente(int clienteId) {
+        String descripcion = "";
+        String sql = "SELECT descripcion FROM ordenreparacion WHERE cliente_id = ? AND estadoreparacion = 'Finalizada'";
+
+        try (Connection conexion = conector.getConexion();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setInt(1, clienteId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                descripcion = rs.getString("descripcion");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return descripcion;
+    }
+    
+    private void generarFactura() {
+        // Seleccionar cliente
+        String clienteId = JOptionPane.showInputDialog("Ingrese el ID del cliente:");
+        if (clienteId == null || clienteId.trim().isEmpty()) return;
+
+        // Obtener la descripción de los servicios en las órdenes de reparación
+        String descripcion = obtenerServiciosCliente(Integer.parseInt(clienteId));
+        if (descripcion.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No hay servicios asociados a este cliente.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Calcular el total
+        double total = calcularTotal(descripcion);
+        if (total == 0) {
+            JOptionPane.showMessageDialog(this, "No se encontraron precios para los servicios seleccionados.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Seleccionar método de pago
+        String[] opcionesPago = {"Efectivo", "Tarjeta", "Fraccionado", "Mixto"};
+        String metodoPago = (String) JOptionPane.showInputDialog(
+                null,
+                "Seleccione el método de pago:",
+                "Método de Pago",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                opcionesPago,
+                opcionesPago[0]
+        );
+
+        if (metodoPago == null) return;
+
+        // Insertar la factura
+        String sql = "INSERT INTO facturas (cliente_id, vehiculo_matricula, total, metodo_pago) VALUES (?, (SELECT vehiculo_matricula FROM ordenreparacion WHERE cliente_id = ? LIMIT 1), ?, ?)";
+        try (Connection conexion = conector.getConexion();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setInt(1, Integer.parseInt(clienteId));
+            ps.setInt(2, Integer.parseInt(clienteId));
+            ps.setDouble(3, total);
+            ps.setString(4, metodoPago);
+            ps.executeUpdate();
+
+            JOptionPane.showMessageDialog(this, "Factura generada correctamente.");
+            cargarFacturas();
         } catch (SQLException e) {
             e.printStackTrace();
         }
