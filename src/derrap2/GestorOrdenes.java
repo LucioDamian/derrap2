@@ -1,4 +1,4 @@
-package derrapchatgpt;
+package derrap2;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -105,23 +105,17 @@ public class GestorOrdenes extends JPanel {
         String matricula = JOptionPane.showInputDialog("Ingrese la matrícula del vehículo:");
         if (matricula == null || matricula.trim().isEmpty()) return;
 
-        // Verificar si el vehículo tiene cliente asignado
-        String sqlValidarVehiculo = "SELECT cliente_id FROM vehiculos WHERE matricula = ?";
+        // Obtener cliente_id antes de insertar la orden
+        String sqlObtenerCliente = "SELECT cliente_id FROM vehiculos WHERE matricula = ?";
         int clienteId = -1;
-        
         try (Connection conexion = conector.getConexion();
-             PreparedStatement ps = conexion.prepareStatement(sqlValidarVehiculo)) {
+             PreparedStatement ps = conexion.prepareStatement(sqlObtenerCliente)) {
             ps.setString(1, matricula);
             ResultSet rs = ps.executeQuery();
-            
             if (rs.next()) {
                 clienteId = rs.getInt("cliente_id");
-                if (clienteId == 0) {
-                    JOptionPane.showMessageDialog(this, "El vehículo no tiene un cliente asignado. No se puede crear la orden.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
             } else {
-                JOptionPane.showMessageDialog(this, "El vehículo no existe en la base de datos.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "El vehículo no está registrado o no tiene un cliente asignado.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
         } catch (SQLException e) {
@@ -129,41 +123,17 @@ public class GestorOrdenes extends JPanel {
             return;
         }
 
-        // Verificar si el mecánico existe
         String dniMecanico = JOptionPane.showInputDialog("Ingrese el DNI del mecánico:");
         if (dniMecanico == null || dniMecanico.trim().isEmpty()) return;
 
-        String sqlValidarMecanico = "SELECT dni FROM usuarios WHERE dni = ? AND rol = 'Mecanico'";
-        try (Connection conexion = conector.getConexion();
-             PreparedStatement ps = conexion.prepareStatement(sqlValidarMecanico)) {
-            ps.setString(1, dniMecanico);
-            ResultSet rs = ps.executeQuery();
-            
-            if (!rs.next()) {
-                JOptionPane.showMessageDialog(this, "El mecánico con el DNI ingresado no existe.", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        // Mostrar ventana para seleccionar múltiples servicios
-        String descripcion = seleccionarServicios();
-        if (descripcion.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe seleccionar al menos un servicio.", "Error", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        // Insertar la orden en la base de datos
-        String sqlInsert = "INSERT INTO ordenreparacion (usuario_dni, vehiculo_matricula, estadoreparacion, descripcion) VALUES (?, ?, 'Sin comenzar', ?)";
+        String sqlInsert = "INSERT INTO ordenreparacion (vehiculo_matricula, usuario_dni, cliente_id, estadoreparacion, descripcion) VALUES (?, ?, ?, 'Sin comenzar', ?)";
         try (Connection conexion = conector.getConexion();
              PreparedStatement ps = conexion.prepareStatement(sqlInsert)) {
-            ps.setString(1, dniMecanico);
-            ps.setString(2, matricula);
-            ps.setString(3, descripcion);
+            ps.setString(1, matricula);
+            ps.setString(2, dniMecanico);
+            ps.setInt(3, clienteId);
+            ps.setString(4, "Descripción de la reparación");
             ps.executeUpdate();
-            
             JOptionPane.showMessageDialog(this, "Orden agregada correctamente.");
             cargarOrdenes();
         } catch (SQLException e) {

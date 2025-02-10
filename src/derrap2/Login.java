@@ -1,4 +1,4 @@
-package derrapchatgpt;
+package derrap2;
 
 import javax.swing.*;
 import java.awt.*;
@@ -47,18 +47,20 @@ public class Login extends JFrame {
     private void verificarCredenciales() {
         String usuario = txtUsuario.getText();
         String contraseña = new String(txtContraseña.getPassword());
-        
-        String sql = "SELECT rol FROM usuarios WHERE dni = ? AND contraseña = ?";
+
+        String sql = "SELECT dni, rol FROM usuarios WHERE dni = ? AND contraseña = ?";
         try (Connection conexion = con.getConexion();
              PreparedStatement ps = conexion.prepareStatement(sql)) {
+
             ps.setString(1, usuario);
             ps.setString(2, contraseña);
             ResultSet rs = ps.executeQuery();
-            
+
             if (rs.next()) {
+                String dni = rs.getString("dni");
                 String rol = rs.getString("rol");
                 JOptionPane.showMessageDialog(this, "Bienvenido, " + rol);
-                abrirVentanaPorRol(rol);
+                abrirVentanaPorRol(rol, dni);
             } else {
                 JOptionPane.showMessageDialog(this, "Usuario o contraseña incorrectos", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -67,11 +69,11 @@ public class Login extends JFrame {
         }
     }
 
-    private void abrirVentanaPorRol(String rol) {
+    private void abrirVentanaPorRol(String rol, String dni) {
         if (rol.equals("Administrador")) {
             new Administrador().setVisible(true);
         } else if (rol.equals("Mecanico")) {
-            new Mecanico().setVisible(true);
+            new Mecanico(dni).setVisible(true); // ✅ Ahora pasamos el DNI en lugar del rol
         }
         dispose();
     }
